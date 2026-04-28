@@ -1,8 +1,8 @@
 {
   "xaranna": {
     "title": "Xaranna",
-    "lat": -19.47,
-    "lng": 23.02,
+    "lat": -19.633306,
+    "lng": 22.900127,
     "images": [
       "https://storage.googleapis.com/jono-photo-portfolio/Xaranna/DJI_0011.jpg",
       "https://storage.googleapis.com/jono-photo-portfolio/Xaranna/DJI_0012.jpg",
@@ -139,8 +139,8 @@
   },
   "Nxabega": {
     "title": "Nxabega",
-    "lat": -19.58,
-    "lng": 22.96,
+    "lat": -19.486082,
+    "lng": 22.795468,
     "images": [
       "https://storage.googleapis.com/jono-photo-portfolio/Nxabega/ER9A6280.jpg",
       "https://storage.googleapis.com/jono-photo-portfolio/Nxabega/ER9A6284.jpg",
@@ -568,8 +568,8 @@
   },
   "Isimangaliso": {
     "title": "Isimangaliso",
-    "lat": null,
-    "lng": null,
+    "lat": -26.953931,
+    "lng": , 32.850380,
     "images": [
       "https://storage.googleapis.com/jono-photo-portfolio/Isimangaliso/DJI_0003.jpg",
       "https://storage.googleapis.com/jono-photo-portfolio/Isimangaliso/DJI_0010.jpg",
@@ -728,8 +728,8 @@
   },
   "Dukes": {
     "title": "Dukes Camp",
-    "lat": -19.32,
-    "lng": 22.88,
+    "lat": -18.875316,
+    "lng": 22.664633,
     "images": [
       "https://storage.googleapis.com/jono-photo-portfolio/Dukes/ER9A0002.jpg",
       "https://storage.googleapis.com/jono-photo-portfolio/Dukes/ER9A0003.jpg",
@@ -1062,8 +1062,8 @@
   },
   "Sable-Alley": {
     "title": "Sable Alley",
-    "lat": -19.42,
-    "lng": 23.08,
+    "lat": -19.127684
+    "lng": 23.661113,
     "images": [
       "https://storage.googleapis.com/jono-photo-portfolio/Sable-Alley/ER9A8061.jpg",
       "https://storage.googleapis.com/jono-photo-portfolio/Sable-Alley/ER9A8063.jpg",
@@ -1218,8 +1218,8 @@
   },
   "Tuludi": {
     "title": "Tuludi",
-    "lat": -19.36,
-    "lng": 23.04,
+    "lat": -19.138335,
+    "lng": 23.568352,
     "images": [
       "https://storage.googleapis.com/jono-photo-portfolio/Tuludi/ER9A1608.jpg",
       "https://storage.googleapis.com/jono-photo-portfolio/Tuludi/ER9A1624.jpg",
@@ -1271,6 +1271,55 @@
       "https://storage.googleapis.com/jono-photo-portfolio/Tuludi/ER9A1920.jpg",
       "https://storage.googleapis.com/jono-photo-portfolio/Tuludi/ER9A1928.jpg",
       "https://storage.googleapis.com/jono-photo-portfolio/Tuludi/ER9A1940.jpg"
+    ]
+  },
+  "Guma_Lagoon": {
+    "title": "Guma Lagoon",
+    "lat": -18.964815,
+    "lng": 22.377918,
+    "thumbnailUrl": "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.47.09.jpeg",
+    "images": [
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Video 2026-04-26 at 15.47.08.mp4",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Video 2026-04-26 at 15.46.22.mp4",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Video 2026-04-26 at 15.46.18.mp4",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Video 2026-04-26 at 15.46.04.mp4",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.47.09.jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.47.09 (1).jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.47.08.jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.24.jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.24 (2).jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.24 (1).jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.23.jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.23 (2).jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.23 (1).jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.14.jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.13.jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.13 (2).jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.13 (1).jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.12.jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.12 (1).jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.11.jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.11 (3).jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.11 (2).jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.11 (1).jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.10.jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.10 (2).jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.10 (1).jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.09.jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.09 (1).jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.08.jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.08 (1).jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.07.jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.07 (2).jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.07 (1).jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.06.jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.06 (1).jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.05.jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.05 (1).jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.46.04.jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.45.38.jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.45.37.jpeg",
+      "https://storage.googleapis.com/jono-photo-portfolio/Guma_Lagoon/WhatsApp Image 2026-04-26 at 15.45.37 (1).jpeg"
     ]
   }
 }
