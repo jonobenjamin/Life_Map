@@ -26,10 +26,20 @@
       width: 100%;
     }
 
-    #map { 
+    .map-pane {
+      position: absolute;
+      inset: 0;
       width: 100%;
       height: 100%;
       min-height: 300px;
+    }
+
+    .map-pane[hidden] {
+      display: none !important;
+    }
+
+    #dashboard-legend[hidden] {
+      display: none !important;
     }
 
     .map-controls {
@@ -173,11 +183,48 @@
       outline-offset: 1px;
     }
 
-    .map-style-toggle[aria-pressed="true"] {
-      color: #222;
-      background: #f0f0f0;
-      border-color: #333;
-      font-weight: 600;
+    .scratch-back-row {
+      margin-bottom: 10px;
+    }
+
+    .scratch-legend {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .scratch-legend .legend-item {
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .scratch-legend .legend-color {
+      width: 16px;
+      height: 16px;
+      margin-right: 6px;
+      border: 1px solid #ccc;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    #controls-scratch .visited-countries-inline .country-list {
+      font-size: 10px;
+      line-height: 1.3;
+      color: #666;
+      max-height: 60px;
+      overflow-y: auto;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 4px;
+      border-radius: 3px;
+      border: 1px solid #e0e0e0;
+    }
+
+    #controls-dashboard[hidden],
+    #controls-scratch[hidden] {
+      display: none !important;
     }
 
     .photo-pins-toggle {
@@ -571,8 +618,9 @@
   <div class="container">
     <div id="loading" class="loading">Loading map data...</div>
     <div class="map-wrap">
-      <div id="map"></div>
-      <div class="legend legend--overlay" id="legend" role="group" aria-label="Activity layers">
+      <div id="map-dashboard" class="map-pane"></div>
+      <div id="map-scratch" class="map-pane" hidden></div>
+      <div class="legend legend--overlay" id="dashboard-legend" role="group" aria-label="Activity layers">
         <button type="button" class="legend-item legend-toggle" data-category="self drive" aria-pressed="true">
           <span class="legend-color" style="background:black;"></span>
           Self Drive
@@ -604,7 +652,7 @@
       </div>
     </div>
 
-    <div class="map-controls">
+    <div class="map-controls" id="controls-dashboard">
       <h3 class="controls-header">All Activities Dashboard</h3>
 
       <div class="stats" id="stats">Loading…</div>
@@ -614,8 +662,8 @@
           <span class="photo-pins-toggle-dot" aria-hidden="true"></span>
           Photo pins
         </button>
-        <button type="button" class="map-style-toggle" id="toggle-map-style" aria-pressed="false" aria-label="Map style: street map (OpenStreetMap). Activate for scratch-style map.">
-          Street map
+        <button type="button" class="map-style-toggle" id="btn-view-scratch" aria-label="Switch to scratch map (countries visited)">
+          Scratch map
         </button>
       </div>
 
@@ -629,6 +677,31 @@
         <button id="reset">Reset</button>
       </div>
     </div>
+
+    <div class="map-controls" id="controls-scratch" hidden>
+      <div class="scratch-back-row">
+        <button type="button" class="map-style-toggle" id="btn-view-dashboard" aria-label="Switch back to activities map">
+          Activities map
+        </button>
+      </div>
+      <h3 class="controls-header">Strava Scratch Map</h3>
+
+      <div class="scratch-legend">
+        <div class="legend-item">
+          <div class="legend-color" style="background:rebeccapurple;"></div>
+          Visited
+        </div>
+        <div class="legend-item not-visited-with-countries">
+          <div class="legend-color" style="background:#000;"></div>
+          Not Visited
+          <div class="visited-countries-inline" id="visited-countries-wrap" style="display:none;">
+            <div class="country-list" id="scratch-country-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats" id="scratch-stats">Loading…</div>
+    </div>
   </div>
 
   <div id="photo-gallery-modal" class="photo-gallery-modal" aria-hidden="true">
@@ -641,6 +714,7 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
   <script>
     // Canonical GeoJSON in https://github.com/jonobenjamin/Strava/tree/main/docs/data
     // Override: window.ALL_DATA_URL_DEFAULTS (before this script) or ?activities=&travel=
@@ -671,6 +745,21 @@
         : {}
     );
 
+    var SCRATCH_FALLBACK_COUNTRIES =
+      'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson';
+
+    var SCRATCH_URL_DEFAULTS = Object.assign(
+      {
+        countries: new URL('data/countries.geojson', window.location.href).href,
+        countriesVisitedCsv: new URL('countries_visited.csv', window.location.href).href
+      },
+      typeof window !== 'undefined' &&
+        window.SCRATCH_DATA_URL_DEFAULTS &&
+        typeof window.SCRATCH_DATA_URL_DEFAULTS === 'object'
+        ? window.SCRATCH_DATA_URL_DEFAULTS
+        : {}
+    );
+
     function resolveDataRef(ref) {
       if (ref == null || String(ref).trim() === '') return '';
       var s = String(ref).trim();
@@ -692,6 +781,47 @@
       var params = new URLSearchParams(window.location.search);
       var ai = params.get('allimages');
       return resolveDataRef(ai != null && ai !== '' ? ai : PHOTO_URL_DEFAULTS.allimages);
+    }
+
+    function getScratchEndpoints() {
+      var params = new URLSearchParams(window.location.search);
+      var c = params.get('countries');
+      var csv = params.get('countriesVisited');
+      return {
+        countries: resolveDataRef(c != null && c !== '' ? c : SCRATCH_URL_DEFAULTS.countries),
+        countriesVisitedCsv: resolveDataRef(
+          csv != null && csv !== '' ? csv : SCRATCH_URL_DEFAULTS.countriesVisitedCsv
+        )
+      };
+    }
+
+    function fetchCountriesGeoJsonForScratch() {
+      var primary = getScratchEndpoints().countries;
+      return fetchJson(primary).then(function (doc) {
+        if (doc && doc.features && doc.features.length) return doc;
+        return fetchJson(SCRATCH_FALLBACK_COUNTRIES);
+      });
+    }
+
+    function loadCountriesVisitedScratch() {
+      var ep = getScratchEndpoints().countriesVisitedCsv;
+      if (!ep) return Promise.resolve([]);
+      var url = new URL(ep);
+      url.searchParams.set('_', String(Date.now()));
+      return fetch(url.href)
+        .then(function (r) {
+          if (!r.ok) return [];
+          return r.text();
+        })
+        .then(function (text) {
+          return text.split(/\r?\n/).filter(function (line) {
+            line = line.trim();
+            return line.length > 0 && line.indexOf('#') !== 0;
+          });
+        })
+        .catch(function () {
+          return [];
+        });
     }
 
     /** Each folder in all-images.json: { title?, lat?, lng?, thumbnailUrl?, images: string[] } — legacy: plain string[]. */
@@ -883,8 +1013,239 @@
       document.body.classList.remove('dashboard');
     }
 
+    var scratchMap = null;
+    var scratchContentLoaded = false;
+    var geoActivitiesScratch = null;
+    var geoTravelScratch = null;
+
+    function normalizeCountryNameScratch(name) {
+      return String(name || '')
+        .toLowerCase()
+        .replace(/^the\s+/i, '')
+        .replace(/[^\w\s]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function createCountryAliasesScratch() {
+      return {
+        usa: ['united states of america', 'united states', 'america'],
+        uk: ['united kingdom', 'great britain', 'britain'],
+        england: ['united kingdom', 'great britain'],
+        russia: ['russian federation'],
+        'south korea': ['korea'],
+        'north korea': ['korea'],
+        'czech republic': ['czechia'],
+        myanmar: ['burma'],
+        iran: ['islamic republic of iran'],
+        syria: ['syrian arab republic'],
+        laos: ['lao'],
+        macedonia: ['north macedonia'],
+        congo: ['democratic republic of the congo', 'republic of the congo'],
+        'ivory coast': ['cote divoire'],
+        bosnia: ['bosnia and herzegovina']
+      };
+    }
+
+    function scratchFilterActivity(feature) {
+      var props = feature.properties || {};
+      var type = String(props.type || props.activity_type || '').toLowerCase();
+      var name = String(props.name || '').toLowerCase();
+      if (name.indexOf('virtual') !== -1 || type.indexOf('virtual') !== -1) return false;
+      if (type.indexOf('flight') !== -1 || name.indexOf('flight') !== -1) return false;
+      if (
+        name.endsWith('(flight)') ||
+        name.endsWith('(Flight)') ||
+        name.endsWith('(FLIGHT)')
+      ) {
+        return false;
+      }
+      return true;
+    }
+
+    function buildScratchCountryLayers(countries, visitedCountriesFromFile) {
+      var filteredActivities = geoActivitiesScratch.features.filter(scratchFilterActivity);
+      var filteredTravel = geoTravelScratch.features.filter(scratchFilterActivity);
+      var allFeatures = filteredActivities.concat(filteredTravel);
+
+      var points = [];
+      allFeatures.forEach(function (a) {
+        var g = a.geometry;
+        if (!g) return;
+        if (g.type === 'LineString' && g.coordinates && g.coordinates.length) {
+          points.push(turf.point(g.coordinates[0]));
+          var coords = g.coordinates;
+          points.push(turf.point(coords[Math.floor(coords.length / 2)]));
+        } else if (g.type === 'Point') {
+          points.push(turf.point(g.coordinates));
+        }
+      });
+
+      var visitedCount = 0;
+      var visitedCountries = [];
+      var aliases = createCountryAliasesScratch();
+
+      countries.features.forEach(function (country, i) {
+        var props = country.properties || {};
+        var name =
+          props.NAME ||
+          props.ADMIN ||
+          props.name ||
+          props.NAME_EN ||
+          'Country_' + i;
+
+        var visitedViaActivity = points.some(function (pt) {
+          try {
+            return turf.booleanPointInPolygon(pt, country);
+          } catch (e) {
+            return false;
+          }
+        });
+
+        var normalizedCountryName = normalizeCountryNameScratch(name);
+        var visitedManually = false;
+
+        for (var vi = 0; vi < visitedCountriesFromFile.length; vi++) {
+          var visitedName = visitedCountriesFromFile[vi];
+          var normalizedVisited = normalizeCountryNameScratch(visitedName);
+          var visitedAliases = aliases[normalizedVisited] || [];
+          var countryAliases = aliases[normalizedCountryName] || [];
+
+          if (normalizedVisited === normalizedCountryName) {
+            visitedManually = true;
+            break;
+          }
+          if (
+            visitedAliases.some(function (a) {
+              return normalizeCountryNameScratch(a) === normalizedCountryName;
+            })
+          ) {
+            visitedManually = true;
+            break;
+          }
+          if (
+            countryAliases.some(function (a) {
+              return normalizeCountryNameScratch(a) === normalizedVisited;
+            })
+          ) {
+            visitedManually = true;
+            break;
+          }
+          if (
+            normalizedVisited.length > 4 &&
+            normalizedCountryName.indexOf(normalizedVisited) !== -1
+          ) {
+            visitedManually = true;
+            break;
+          }
+        }
+
+        var visited = visitedViaActivity || visitedManually;
+        if (visited) {
+          visitedCount++;
+          visitedCountries.push(name);
+        }
+
+        L.geoJSON(country, {
+          style: {
+            color: '#333',
+            weight: 1,
+            fillColor: visited ? 'rebeccapurple' : '#000',
+            fillOpacity: visited ? 0.7 : 0.3
+          }
+        })
+          .bindPopup(
+            '<b>' +
+              escapeAttr(name) +
+              '</b><br>Status: ' +
+              (visited ? 'Visited ✓' : 'Not visited')
+          )
+          .addTo(scratchMap);
+      });
+
+      visitedCountries.sort();
+      document.getElementById('scratch-stats').textContent =
+        visitedCount + ' of ' + countries.features.length + ' countries visited';
+
+      var vc = document.getElementById('visited-countries-wrap');
+      var listEl = document.getElementById('scratch-country-list');
+      if (visitedCountries.length > 0 && listEl && vc) {
+        listEl.innerHTML = visitedCountries.join('<br>');
+        vc.style.display = 'flex';
+      }
+
+      var southWest = L.latLng(-56, -180);
+      var northEast = L.latLng(83, 180);
+      scratchMap.fitBounds(L.latLngBounds(southWest, northEast));
+    }
+
+    function initScratchMapOnce() {
+      if (scratchContentLoaded) {
+        return Promise.resolve();
+      }
+      if (!geoActivitiesScratch || !geoTravelScratch) {
+        document.getElementById('scratch-stats').textContent = 'Waiting for activity data…';
+        return Promise.resolve();
+      }
+
+      if (!scratchMap) {
+        scratchMap = L.map('map-scratch', {
+          worldCopyJump: true
+        }).setView([20, 0], 2);
+
+        L.tileLayer(
+          'https://stamen-tiles-{s}.a.ssl.fastly.net/toner/{z}/{x}/{y}{r}.png',
+          {
+            attribution:
+              'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> — © OpenStreetMap',
+            subdomains: 'abcd',
+            minZoom: 0,
+            maxZoom: 20
+          }
+        ).addTo(scratchMap);
+
+        var sw = L.latLng(-56, -180);
+        var ne = L.latLng(83, 180);
+        scratchMap.setMaxBounds(L.latLngBounds(sw, ne));
+      }
+
+      document.getElementById('scratch-stats').textContent = 'Loading countries…';
+
+      return fetchCountriesGeoJsonForScratch()
+        .then(function (countries) {
+          if (!countries || !countries.features || !countries.features.length) {
+            throw new Error('No country boundaries loaded');
+          }
+          return loadCountriesVisitedScratch().then(function (visitedList) {
+            buildScratchCountryLayers(countries, visitedList);
+            scratchContentLoaded = true;
+          });
+        })
+        .catch(function (err) {
+          console.error(err);
+          document.getElementById('scratch-stats').innerHTML =
+            '<div class="error">' + escapeAttr(String(err.message || err)) + '</div>';
+        });
+    }
+
+    function setScratchView(showScratch) {
+      document.getElementById('map-dashboard').hidden = showScratch;
+      document.getElementById('map-scratch').hidden = !showScratch;
+      document.getElementById('dashboard-legend').hidden = showScratch;
+      document.getElementById('controls-dashboard').hidden = showScratch;
+      document.getElementById('controls-scratch').hidden = !showScratch;
+      if (showScratch) {
+        initScratchMapOnce().then(function () {
+          if (scratchMap) scratchMap.invalidateSize();
+        });
+      } else {
+        map.invalidateSize();
+        closePhotoGallery();
+      }
+    }
+
     const africaBounds = [[-35.0, -20.0], [38.0, 52.0]];
-    const map = L.map('map', {
+    const map = L.map('map-dashboard', {
       maxBounds: africaBounds,
       maxBoundsViscosity: 1.0,
       dragging: true,
@@ -893,55 +1254,22 @@
       touchZoom: true
     }).setView([6.0, 25.0], 4);
 
-    var osmTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '© OpenStreetMap contributors'
-    });
+    }).addTo(map);
 
-    var scratchTileLayer = L.tileLayer(
-      'https://stamen-tiles-{s}.a.ssl.fastly.net/toner/{z}/{x}/{y}{r}.png',
-      {
-        attribution:
-          'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> — © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        subdomains: 'abcd',
-        minZoom: 0,
-        maxZoom: 20
-      }
-    );
-
-    var activeBaseLayer = osmTileLayer;
-    osmTileLayer.addTo(map);
-
-    function updateMapStyleButton(scratchActive) {
-      var btn = document.getElementById('toggle-map-style');
-      if (!btn) return;
-      btn.setAttribute('aria-pressed', scratchActive ? 'true' : 'false');
-      btn.textContent = scratchActive ? 'Scratch map' : 'Street map';
-      btn.setAttribute(
-        'aria-label',
-        scratchActive
-          ? 'Map style: scratch map (Stamen Toner). Activate for street map.'
-          : 'Map style: street map (OpenStreetMap). Activate for scratch-style map.'
-      );
-    }
-
-    (function wireMapStyleToggle() {
-      var btn = document.getElementById('toggle-map-style');
-      if (!btn) return;
-      btn.addEventListener('click', function () {
-        var useScratch = activeBaseLayer === osmTileLayer;
-        map.removeLayer(activeBaseLayer);
-        activeBaseLayer = useScratch ? scratchTileLayer : osmTileLayer;
-        activeBaseLayer.addTo(map);
-        updateMapStyleButton(useScratch);
-        map.invalidateSize();
-      });
-    })();
-    
     const layerGroup = L.layerGroup().addTo(map);
     const photoMarkersLayer = L.layerGroup().addTo(map);
     let features = [];
     let photoPinsVisible = true;
+
+    (function wireScratchViewButtons() {
+      var btnS = document.getElementById('btn-view-scratch');
+      var btnD = document.getElementById('btn-view-dashboard');
+      if (btnS) btnS.addEventListener('click', function () { setScratchView(true); });
+      if (btnD) btnD.addEventListener('click', function () { setScratchView(false); });
+    })();
 
     function mergePhotoIntoBounds(bounds) {
       photoMarkersLayer.eachLayer(function (layer) {
@@ -1081,6 +1409,9 @@
       }
       return [activitiesGeo, travelGeo, photoData];
     }).then(([activitiesGeo, travelGeo, photoData]) => {
+      geoActivitiesScratch = JSON.parse(JSON.stringify(activitiesGeo));
+      geoTravelScratch = JSON.parse(JSON.stringify(travelGeo));
+
       features = activitiesGeo.features.concat(
         travelGeo.features.map(f => {
           const p = f.properties || {};
@@ -1209,6 +1540,7 @@
     window.addEventListener('resize', function() {
       setTimeout(() => {
         map.invalidateSize();
+        if (scratchMap) scratchMap.invalidateSize();
       }, 100);
     });
   </script>
