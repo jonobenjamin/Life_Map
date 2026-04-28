@@ -569,7 +569,7 @@
   "Isimangaliso": {
     "title": "Isimangaliso",
     "lat": -26.953931,
-    "lng": , 32.850380,
+    "lng": 32.850380,
     "images": [
       "https://storage.googleapis.com/jono-photo-portfolio/Isimangaliso/DJI_0003.jpg",
       "https://storage.googleapis.com/jono-photo-portfolio/Isimangaliso/DJI_0010.jpg",
@@ -1062,7 +1062,7 @@
   },
   "Sable-Alley": {
     "title": "Sable Alley",
-    "lat": -19.127684
+    "lat": -19.127684,
     "lng": 23.661113,
     "images": [
       "https://storage.googleapis.com/jono-photo-portfolio/Sable-Alley/ER9A8061.jpg",
