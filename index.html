@@ -315,6 +315,148 @@
         font-size: 10px;
       }
     }
+
+    /* Photo pins */
+    .photo-pin.leaflet-marker-icon {
+      border: none;
+      background: transparent;
+    }
+
+    .photo-pin-inner {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      overflow: hidden;
+      border: 3px solid #fff;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+      cursor: pointer;
+      background: #222;
+    }
+
+    .photo-pin-inner img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      pointer-events: none;
+    }
+
+    /* Photo gallery modal */
+    .photo-gallery-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+
+    .photo-gallery-modal.is-open {
+      display: flex;
+    }
+
+    .photo-gallery-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.72);
+      cursor: pointer;
+    }
+
+    .photo-gallery-dialog {
+      position: relative;
+      z-index: 1;
+      background: #111;
+      color: #eee;
+      border-radius: 10px;
+      max-width: min(1100px, 100%);
+      max-height: min(92vh, 900px);
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.45);
+      overflow: hidden;
+    }
+
+    .photo-gallery-close {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      z-index: 2;
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      margin: 0;
+      border: none;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      font-size: 26px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .photo-gallery-close:hover {
+      background: rgba(255, 255, 255, 0.22);
+    }
+
+    #photo-gallery-title {
+      margin: 0;
+      padding: 18px 52px 12px 18px;
+      font-size: 20px;
+      font-weight: 600;
+      flex-shrink: 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .photo-gallery-body {
+      overflow-y: auto;
+      padding: 14px 18px 18px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .photo-gallery-loading {
+      padding: 24px;
+      text-align: center;
+      color: #aaa;
+      font-size: 14px;
+    }
+
+    .photo-gallery-masonry {
+      column-count: 3;
+      column-gap: 10px;
+    }
+
+    @media (max-width: 900px) {
+      .photo-gallery-masonry {
+        column-count: 2;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .photo-gallery-masonry {
+        column-count: 1;
+      }
+    }
+
+    .photo-gallery-item {
+      break-inside: avoid;
+      margin-bottom: 10px;
+      border-radius: 6px;
+      overflow: hidden;
+      background: #222;
+    }
+
+    .photo-gallery-item img {
+      width: 100%;
+      height: auto;
+      vertical-align: middle;
+      display: block;
+    }
   </style>
 </head>
 <body class="dashboard">
@@ -371,6 +513,15 @@
     </div>
   </div>
 
+  <div id="photo-gallery-modal" class="photo-gallery-modal" aria-hidden="true">
+    <div class="photo-gallery-backdrop" id="photo-gallery-backdrop"></div>
+    <div class="photo-gallery-dialog" role="dialog" aria-modal="true" aria-labelledby="photo-gallery-title">
+      <button type="button" class="photo-gallery-close" id="photo-gallery-close" aria-label="Close">&times;</button>
+      <h2 id="photo-gallery-title"></h2>
+      <div id="photo-gallery-body" class="photo-gallery-body"></div>
+    </div>
+  </div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     // Canonical GeoJSON in https://github.com/jonobenjamin/Strava/tree/main/docs/data
@@ -391,6 +542,17 @@
         : {}
     );
 
+    var PHOTO_URL_DEFAULTS = Object.assign(
+      {
+        allimages: new URL('all-images.json', window.location.href).href
+      },
+      typeof window !== 'undefined' &&
+        window.ALL_PHOTO_URL_DEFAULTS &&
+        typeof window.ALL_PHOTO_URL_DEFAULTS === 'object'
+        ? window.ALL_PHOTO_URL_DEFAULTS
+        : {}
+    );
+
     function resolveDataRef(ref) {
       if (ref == null || String(ref).trim() === '') return '';
       var s = String(ref).trim();
@@ -408,6 +570,47 @@
       };
     }
 
+    function getAllImagesEndpoint() {
+      var params = new URLSearchParams(window.location.search);
+      var ai = params.get('allimages');
+      return resolveDataRef(ai != null && ai !== '' ? ai : PHOTO_URL_DEFAULTS.allimages);
+    }
+
+    /** Each folder in all-images.json: { title?, lat?, lng?, thumbnailUrl?, images: string[] } — legacy: plain string[]. */
+    function parseAllImagesDoc(doc) {
+      var locations = [];
+      if (!doc || typeof doc !== 'object' || Array.isArray(doc)) {
+        return { locations: locations };
+      }
+      Object.keys(doc).forEach(function (key) {
+        var v = doc[key];
+        var images = [];
+        var lat = null;
+        var lng = null;
+        var title = key;
+        var thumb = null;
+        if (Array.isArray(v)) {
+          images = v;
+        } else if (v && typeof v === 'object') {
+          images = Array.isArray(v.images) ? v.images : [];
+          if (v.lat != null && String(v.lat).trim() !== '') lat = Number(v.lat);
+          if (v.lng != null && String(v.lng).trim() !== '') lng = Number(v.lng);
+          if (v.title != null && String(v.title).trim() !== '') title = String(v.title);
+          if (v.thumbnailUrl != null && String(v.thumbnailUrl).trim() !== '') thumb = String(v.thumbnailUrl);
+        }
+        if (!images.length) return;
+        locations.push({
+          folderKey: key,
+          title: title,
+          lat: lat,
+          lng: lng,
+          thumbnailUrl: thumb,
+          images: images
+        });
+      });
+      return { locations: locations };
+    }
+
     function fetchGeoJson(endpoint) {
       var url = new URL(endpoint);
       url.searchParams.set('_', String(Date.now()));
@@ -418,6 +621,104 @@
         return { type: 'FeatureCollection', features: [] };
       });
     }
+
+    function fetchJson(endpoint) {
+      if (!endpoint) return Promise.resolve(null);
+      var url = new URL(endpoint);
+      url.searchParams.set('_', String(Date.now()));
+      return fetch(url.href)
+        .then(function (r) {
+          if (!r.ok) return null;
+          return r.json();
+        })
+        .catch(function () {
+          return null;
+        });
+    }
+
+    function loadPhotoGalleryData() {
+      var ep = getAllImagesEndpoint();
+      return fetchJson(ep).then(function (doc) {
+        return parseAllImagesDoc(doc);
+      });
+    }
+
+    function loadAspectRatios(srcs) {
+      return Promise.all(
+        srcs.map(function (src) {
+          return new Promise(function (resolve) {
+            var img = new Image();
+            img.onload = function () {
+              resolve(img.naturalWidth / Math.max(img.naturalHeight, 1));
+            };
+            img.onerror = function () {
+              resolve(1.5);
+            };
+            img.src = src;
+          });
+        })
+      );
+    }
+
+    function escapeAttr(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;');
+    }
+
+    function openPhotoGallery(title, srcs) {
+      var modal = document.getElementById('photo-gallery-modal');
+      var titleEl = document.getElementById('photo-gallery-title');
+      var body = document.getElementById('photo-gallery-body');
+      titleEl.textContent = title;
+      body.innerHTML = '<div class="photo-gallery-loading">Loading gallery…</div>';
+      modal.classList.add('is-open');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      map.invalidateSize();
+
+      loadAspectRatios(srcs).then(function (aspects) {
+        body.innerHTML = '';
+        var masonry = document.createElement('div');
+        masonry.className = 'photo-gallery-masonry';
+        for (var i = 0; i < srcs.length; i++) {
+          var ar = aspects[i];
+          var wrap = document.createElement('div');
+          wrap.className = 'photo-gallery-item';
+          wrap.style.aspectRatio = String(ar);
+          var img = document.createElement('img');
+          img.src = srcs[i];
+          img.alt = '';
+          img.loading = 'lazy';
+          img.style.width = '100%';
+          img.style.height = '100%';
+          img.style.objectFit = 'cover';
+          wrap.appendChild(img);
+          masonry.appendChild(wrap);
+        }
+        body.appendChild(masonry);
+      });
+    }
+
+    function closePhotoGallery() {
+      var modal = document.getElementById('photo-gallery-modal');
+      modal.classList.remove('is-open');
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      map.invalidateSize();
+    }
+
+    (function wirePhotoGalleryModal() {
+      document.getElementById('photo-gallery-close').addEventListener('click', closePhotoGallery);
+      document.getElementById('photo-gallery-backdrop').addEventListener('click', closePhotoGallery);
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && document.getElementById('photo-gallery-modal').classList.contains('is-open')) {
+          closePhotoGallery();
+        }
+      });
+    })();
 
     // Detect if running in tile mode (you can set this based on URL params or container size)
     function detectTileMode() {
@@ -449,7 +750,51 @@
     }).addTo(map);
     
     const layerGroup = L.layerGroup().addTo(map);
+    const photoMarkersLayer = L.layerGroup().addTo(map);
     let features = [];
+
+    function mergePhotoIntoBounds(bounds) {
+      photoMarkersLayer.eachLayer(function (layer) {
+        if (layer.getLatLng) bounds.extend(layer.getLatLng());
+      });
+    }
+
+    function drawPhotoPins(locations) {
+      photoMarkersLayer.clearLayers();
+      if (!locations || !locations.length) return;
+      locations.forEach(function (loc) {
+        var urls = loc.images;
+        if (!urls || !urls.length) return;
+        var thumb =
+          loc.thumbnailUrl != null && String(loc.thumbnailUrl).trim() !== ''
+            ? loc.thumbnailUrl
+            : urls[0];
+        var title =
+          loc.title != null && String(loc.title).trim() !== ''
+            ? loc.title
+            : String(loc.folderKey || '');
+        var lat = Number(loc.lat);
+        var lng = Number(loc.lng);
+        if (!isFinite(lat) || !isFinite(lng)) return;
+
+        var icon = L.divIcon({
+          className: 'photo-pin',
+          html:
+            '<div class="photo-pin-inner"><img src="' +
+            escapeAttr(thumb) +
+            '" alt=""/></div>',
+          iconSize: [52, 52],
+          iconAnchor: [26, 52],
+          popupAnchor: [0, -52]
+        });
+
+        var marker = L.marker([lat, lng], { icon: icon, title: title });
+        marker.on('click', function () {
+          openPhotoGallery(title, urls);
+        });
+        marker.addTo(photoMarkersLayer);
+      });
+    }
 
     const CATEGORY_KEYS = ['self drive', 'game drive', 'flight', 'boat', 'run', 'ride', 'other'];
     const layerVisibility = Object.fromEntries(CATEGORY_KEYS.map(k => [k, true]));
@@ -529,16 +874,23 @@
     }
 
     // Load GeoJSON from DATA_URL_DEFAULTS or ?activities=&travel= (any origin with CORS if cross-site)
+    // Photo pins / galleries: all-images.json (coords + images per folder), or ?allimages=
     (function () {
       var ep = getDataEndpoints();
-      return Promise.all([fetchGeoJson(ep.activities), fetchGeoJson(ep.travel)]);
-    })().then(([activitiesGeo, travelGeo]) => {
+      return Promise.all([
+        fetchGeoJson(ep.activities),
+        fetchGeoJson(ep.travel),
+        loadPhotoGalleryData()
+      ]);
+    })().then(([activitiesGeo, travelGeo, photoData]) => {
       // If no real data, use sample data
       if (activitiesGeo.features.length === 0 && travelGeo.features.length === 0) {
-        return createSampleData();
+        return createSampleData().then(function (pair) {
+          return [pair[0], pair[1], photoData];
+        });
       }
-      return [activitiesGeo, travelGeo];
-    }).then(([activitiesGeo, travelGeo]) => {
+      return [activitiesGeo, travelGeo, photoData];
+    }).then(([activitiesGeo, travelGeo, photoData]) => {
       features = activitiesGeo.features.concat(
         travelGeo.features.map(f => {
           const p = f.properties || {};
@@ -548,6 +900,8 @@
           return { ...f, properties: p };
         })
       );
+
+      drawPhotoPins(photoData.locations);
       
       initFilters(features);
       draw(features);
@@ -587,6 +941,12 @@
       if (list.length) {
         const bounds = gj.getBounds();
         if (bounds.isValid()) {
+          const ySel = document.getElementById('year');
+          const mSel = document.getElementById('month');
+          const showAll = !ySel.value && !mSel.value;
+          if (showAll && photoMarkersLayer.getLayers().length) {
+            mergePhotoIntoBounds(bounds);
+          }
           map.fitBounds(bounds, { maxZoom: 12, padding: [20, 20] });
         }
       }
