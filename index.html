@@ -139,6 +139,56 @@
       color: #666;
       font-weight: 500;
     }
+
+    .photo-pins-row {
+      margin: 6px 0 10px;
+    }
+
+    .photo-pins-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-family: inherit;
+      font-weight: 500;
+      color: #333;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      cursor: pointer;
+      box-sizing: border-box;
+    }
+
+    .photo-pins-toggle:hover {
+      background: #f8f8f8;
+      border-color: #bbb;
+    }
+
+    .photo-pins-toggle:focus-visible {
+      outline: 2px solid #007cba;
+      outline-offset: 1px;
+    }
+
+    .photo-pins-toggle[aria-pressed="false"] {
+      color: #888;
+      background: #fafafa;
+    }
+
+    .photo-pins-toggle-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      border: 1px solid rgba(0, 0, 0, 0.15);
+      background: linear-gradient(145deg, #ab47bc, #7e57c2);
+      box-sizing: border-box;
+    }
+
+    .photo-pins-toggle[aria-pressed="false"] .photo-pins-toggle-dot {
+      background: transparent;
+      border: 2px dashed #999;
+    }
     
     .loading {
       position: absolute; 
@@ -291,6 +341,21 @@
       font-size: 9px;
       margin: 4px 0;
       line-height: 1.1;
+    }
+
+    .tile-mode .photo-pins-row {
+      margin: 3px 0 5px;
+    }
+
+    .tile-mode .photo-pins-toggle {
+      padding: 3px 6px;
+      font-size: 9px;
+      gap: 5px;
+    }
+
+    .tile-mode .photo-pins-toggle-dot {
+      width: 10px;
+      height: 10px;
     }
     
     @media (max-width: 600px) {
@@ -465,7 +530,7 @@
     <div id="loading" class="loading">Loading map data...</div>
     <div class="map-wrap">
       <div id="map"></div>
-      <div class="legend legend--overlay" id="legend" role="group" aria-label="Activity layers and photo pins">
+      <div class="legend legend--overlay" id="legend" role="group" aria-label="Activity layers">
         <button type="button" class="legend-item legend-toggle" data-category="self drive" aria-pressed="true">
           <span class="legend-color" style="background:black;"></span>
           Self Drive
@@ -494,10 +559,6 @@
           <span class="legend-color" style="background:gray;"></span>
           Other
         </button>
-        <button type="button" class="legend-item legend-toggle" id="toggle-photo-pins" aria-pressed="true" aria-label="Toggle photo gallery pins">
-          <span class="legend-color" style="background:linear-gradient(145deg,#ab47bc,#7e57c2);"></span>
-          Photo pins
-        </button>
       </div>
     </div>
 
@@ -505,6 +566,13 @@
       <h3 class="controls-header">All Activities Dashboard</h3>
 
       <div class="stats" id="stats">Loading…</div>
+
+      <div class="photo-pins-row">
+        <button type="button" class="photo-pins-toggle" id="toggle-photo-pins" aria-pressed="true" aria-label="Show photo pins on map">
+          <span class="photo-pins-toggle-dot" aria-hidden="true"></span>
+          Photo pins
+        </button>
+      </div>
 
       <div class="controls-fields">
         <label>Year
@@ -941,7 +1009,7 @@
       drawPhotoPins(photoData.locations);
       
       initFilters(features);
-      draw(features);
+      draw(features, { fitBounds: true });
       document.getElementById('stats').textContent = `${features.length} activities loaded`;
       hideLoading();
     }).catch(err => {
@@ -949,7 +1017,10 @@
       showError('Failed to load activity data.');
     });
 
-    function draw(list) {
+    function draw(list, drawOpts) {
+      drawOpts = drawOpts || {};
+      var shouldFitBounds = drawOpts.fitBounds === true;
+
       layerGroup.clearLayers();
       
       if (list.length === 0) {
@@ -975,7 +1046,7 @@
         }
       }).addTo(layerGroup);
 
-      if (list.length) {
+      if (shouldFitBounds && list.length) {
         const bounds = gj.getBounds();
         if (bounds.isValid()) {
           const ySel = document.getElementById('year');
@@ -1045,7 +1116,6 @@
             map.removeLayer(photoMarkersLayer);
             closePhotoGallery();
           }
-          apply();
         });
       }
     }
