@@ -451,7 +451,8 @@
       background: #222;
     }
 
-    .photo-gallery-item img {
+    .photo-gallery-item img,
+    .photo-gallery-item video {
       width: 100%;
       height: auto;
       vertical-align: middle;
@@ -643,9 +644,27 @@
       });
     }
 
+    function isVideoSrc(src) {
+      var lower = String(src).split('?')[0].toLowerCase();
+      return /\.(mp4|webm|mov|ogg)$/i.test(lower);
+    }
+
     function loadAspectRatios(srcs) {
       return Promise.all(
         srcs.map(function (src) {
+          if (isVideoSrc(src)) {
+            return new Promise(function (resolve) {
+              var v = document.createElement('video');
+              v.preload = 'metadata';
+              v.onloadedmetadata = function () {
+                resolve(v.videoWidth / Math.max(v.videoHeight, 1));
+              };
+              v.onerror = function () {
+                resolve(16 / 9);
+              };
+              v.src = src;
+            });
+          }
           return new Promise(function (resolve) {
             var img = new Image();
             img.onload = function () {
@@ -688,14 +707,27 @@
           var wrap = document.createElement('div');
           wrap.className = 'photo-gallery-item';
           wrap.style.aspectRatio = String(ar);
-          var img = document.createElement('img');
-          img.src = srcs[i];
-          img.alt = '';
-          img.loading = 'lazy';
-          img.style.width = '100%';
-          img.style.height = '100%';
-          img.style.objectFit = 'cover';
-          wrap.appendChild(img);
+          var url = srcs[i];
+          if (isVideoSrc(url)) {
+            var vid = document.createElement('video');
+            vid.src = url;
+            vid.controls = true;
+            vid.playsInline = true;
+            vid.preload = 'metadata';
+            vid.style.width = '100%';
+            vid.style.height = '100%';
+            vid.style.objectFit = 'cover';
+            wrap.appendChild(vid);
+          } else {
+            var img = document.createElement('img');
+            img.src = url;
+            img.alt = '';
+            img.loading = 'lazy';
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'cover';
+            wrap.appendChild(img);
+          }
           masonry.appendChild(wrap);
         }
         body.appendChild(masonry);
