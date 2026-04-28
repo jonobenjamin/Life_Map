@@ -465,7 +465,7 @@
     <div id="loading" class="loading">Loading map data...</div>
     <div class="map-wrap">
       <div id="map"></div>
-      <div class="legend legend--overlay" id="legend" role="group" aria-label="Activity layers">
+      <div class="legend legend--overlay" id="legend" role="group" aria-label="Activity layers and photo pins">
         <button type="button" class="legend-item legend-toggle" data-category="self drive" aria-pressed="true">
           <span class="legend-color" style="background:black;"></span>
           Self Drive
@@ -493,6 +493,10 @@
         <button type="button" class="legend-item legend-toggle" data-category="other" aria-pressed="true">
           <span class="legend-color" style="background:gray;"></span>
           Other
+        </button>
+        <button type="button" class="legend-item legend-toggle" id="toggle-photo-pins" aria-pressed="true" aria-label="Toggle photo gallery pins">
+          <span class="legend-color" style="background:linear-gradient(145deg,#ab47bc,#7e57c2);"></span>
+          Photo pins
         </button>
       </div>
     </div>
@@ -784,6 +788,7 @@
     const layerGroup = L.layerGroup().addTo(map);
     const photoMarkersLayer = L.layerGroup().addTo(map);
     let features = [];
+    let photoPinsVisible = true;
 
     function mergePhotoIntoBounds(bounds) {
       photoMarkersLayer.eachLayer(function (layer) {
@@ -976,7 +981,7 @@
           const ySel = document.getElementById('year');
           const mSel = document.getElementById('month');
           const showAll = !ySel.value && !mSel.value;
-          if (showAll && photoMarkersLayer.getLayers().length) {
+          if (showAll && photoPinsVisible && photoMarkersLayer.getLayers().length) {
             mergePhotoIntoBounds(bounds);
           }
           map.fitBounds(bounds, { maxZoom: 12, padding: [20, 20] });
@@ -1028,6 +1033,21 @@
         apply(); 
       };
       initLegendToggles(apply);
+
+      var photoPinsBtn = document.getElementById('toggle-photo-pins');
+      if (photoPinsBtn) {
+        photoPinsBtn.addEventListener('click', function () {
+          photoPinsVisible = !photoPinsVisible;
+          photoPinsBtn.setAttribute('aria-pressed', photoPinsVisible ? 'true' : 'false');
+          if (photoPinsVisible) {
+            photoMarkersLayer.addTo(map);
+          } else {
+            map.removeLayer(photoMarkersLayer);
+            closePhotoGallery();
+          }
+          apply();
+        });
+      }
     }
 
     // Handle window resize for responsive behavior
