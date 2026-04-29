@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>All Activities Dashboard</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
   <style>
     html, body { 
       height: 100%; 
@@ -470,7 +472,37 @@
       }
     }
 
-    /* Photo pins */
+    .photo-marker-cluster-wrapper {
+      background: transparent !important;
+      border: none !important;
+    }
+
+    .photo-cluster {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: linear-gradient(145deg, #ab47bc, #7e57c2);
+      color: #fff;
+      font-weight: 700;
+      font-size: 15px;
+      line-height: 1;
+      border: 3px solid #fff;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+      box-sizing: border-box;
+    }
+
+    .photo-cluster--medium .photo-cluster-count {
+      font-size: 14px;
+    }
+
+    .photo-cluster--large .photo-cluster-count {
+      font-size: 13px;
+    }
+
+    /* Photo pins (single markers) */
     .photo-pin.leaflet-marker-icon {
       border: none;
       background: transparent;
@@ -714,8 +746,11 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
   <script>
+    // Scratch map manual visits: countries_visited.csv + manual-countries.json + window.SCRATCH_MANUAL_COUNTRIES
+    // Query overrides: ?countriesVisited=&manualCountries=
     // Canonical GeoJSON in https://github.com/jonobenjamin/Strava/tree/main/docs/data
     // Override: window.ALL_DATA_URL_DEFAULTS (before this script) or ?activities=&travel=
     // Same-origin option when this page is served from that repo’s GitHub Pages:
@@ -751,7 +786,8 @@
     var SCRATCH_URL_DEFAULTS = Object.assign(
       {
         countries: new URL('data/countries.geojson', window.location.href).href,
-        countriesVisitedCsv: new URL('countries_visited.csv', window.location.href).href
+        countriesVisitedCsv: new URL('countries_visited.csv', window.location.href).href,
+        manualCountriesJson: new URL('manual-countries.json', window.location.href).href
       },
       typeof window !== 'undefined' &&
         window.SCRATCH_DATA_URL_DEFAULTS &&
@@ -783,16 +819,60 @@
       return resolveDataRef(ai != null && ai !== '' ? ai : PHOTO_URL_DEFAULTS.allimages);
     }
 
+    function normalizeCountryNameScratch(name) {
+      return String(name || '')
+        .toLowerCase()
+        .replace(/^the\s+/i, '')
+        .replace(/[^\w\s]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
     function getScratchEndpoints() {
       var params = new URLSearchParams(window.location.search);
       var c = params.get('countries');
       var csv = params.get('countriesVisited');
+      var man = params.get('manualCountries');
       return {
         countries: resolveDataRef(c != null && c !== '' ? c : SCRATCH_URL_DEFAULTS.countries),
         countriesVisitedCsv: resolveDataRef(
           csv != null && csv !== '' ? csv : SCRATCH_URL_DEFAULTS.countriesVisitedCsv
+        ),
+        manualCountriesJson: resolveDataRef(
+          man != null && man !== '' ? man : SCRATCH_URL_DEFAULTS.manualCountriesJson
         )
       };
+    }
+
+    function fetchManualCountriesJson() {
+      var ep = getScratchEndpoints().manualCountriesJson;
+      if (!ep) return Promise.resolve([]);
+      return fetchJson(ep).then(function (doc) {
+        if (!doc) return [];
+        if (Array.isArray(doc)) return doc;
+        if (doc.countries && Array.isArray(doc.countries)) return doc.countries;
+        return [];
+      });
+    }
+
+    /** Merges CSV lines, manual-countries.json, and window.SCRATCH_MANUAL_COUNTRIES (deduped). */
+    function mergeVisitedCountryLists(csvLines, jsonCountries) {
+      var seen = Object.create(null);
+      var out = [];
+      function pushUnique(raw) {
+        var s = String(raw || '').trim();
+        if (!s || s.charAt(0) === '#') return;
+        var k = normalizeCountryNameScratch(s);
+        if (!k || seen[k]) return;
+        seen[k] = true;
+        out.push(s);
+      }
+      if (Array.isArray(csvLines)) csvLines.forEach(pushUnique);
+      if (Array.isArray(jsonCountries)) jsonCountries.forEach(pushUnique);
+      if (typeof window !== 'undefined' && Array.isArray(window.SCRATCH_MANUAL_COUNTRIES)) {
+        window.SCRATCH_MANUAL_COUNTRIES.forEach(pushUnique);
+      }
+      return out;
     }
 
     function fetchCountriesGeoJsonForScratch() {
@@ -1018,18 +1098,10 @@
     var geoActivitiesScratch = null;
     var geoTravelScratch = null;
 
-    function normalizeCountryNameScratch(name) {
-      return String(name || '')
-        .toLowerCase()
-        .replace(/^the\s+/i, '')
-        .replace(/[^\w\s]/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
-    }
-
     function createCountryAliasesScratch() {
       return {
         usa: ['united states of america', 'united states', 'america'],
+        'united states': ['usa', 'america', 'united states of america'],
         uk: ['united kingdom', 'great britain', 'britain'],
         england: ['united kingdom', 'great britain'],
         russia: ['russian federation'],
@@ -1045,6 +1117,49 @@
         'ivory coast': ['cote divoire'],
         bosnia: ['bosnia and herzegovina']
       };
+    }
+
+    function manualCountryMatches(normalizedVisited, normalizedCountryName, aliases) {
+      if (normalizedVisited === normalizedCountryName) return true;
+
+      var visitedAliases = aliases[normalizedVisited];
+      if (
+        visitedAliases &&
+        visitedAliases.some(function (a) {
+          return normalizeCountryNameScratch(a) === normalizedCountryName;
+        })
+      ) {
+        return true;
+      }
+
+      var key;
+      for (key in aliases) {
+        if (!Object.prototype.hasOwnProperty.call(aliases, key)) continue;
+        var nk = normalizeCountryNameScratch(key);
+        var group = [nk].concat(
+          (aliases[key] || []).map(function (x) {
+            return normalizeCountryNameScratch(x);
+          })
+        );
+        if (group.indexOf(normalizedVisited) !== -1 && group.indexOf(normalizedCountryName) !== -1) {
+          return true;
+        }
+      }
+
+      if (
+        normalizedVisited.length > 4 &&
+        normalizedCountryName.indexOf(normalizedVisited) !== -1
+      ) {
+        return true;
+      }
+      if (
+        normalizedCountryName.length > 4 &&
+        normalizedVisited.indexOf(normalizedCountryName) !== -1
+      ) {
+        return true;
+      }
+
+      return false;
     }
 
     function scratchFilterActivity(feature) {
@@ -1106,35 +1221,8 @@
         var visitedManually = false;
 
         for (var vi = 0; vi < visitedCountriesFromFile.length; vi++) {
-          var visitedName = visitedCountriesFromFile[vi];
-          var normalizedVisited = normalizeCountryNameScratch(visitedName);
-          var visitedAliases = aliases[normalizedVisited] || [];
-          var countryAliases = aliases[normalizedCountryName] || [];
-
-          if (normalizedVisited === normalizedCountryName) {
-            visitedManually = true;
-            break;
-          }
-          if (
-            visitedAliases.some(function (a) {
-              return normalizeCountryNameScratch(a) === normalizedCountryName;
-            })
-          ) {
-            visitedManually = true;
-            break;
-          }
-          if (
-            countryAliases.some(function (a) {
-              return normalizeCountryNameScratch(a) === normalizedVisited;
-            })
-          ) {
-            visitedManually = true;
-            break;
-          }
-          if (
-            normalizedVisited.length > 4 &&
-            normalizedCountryName.indexOf(normalizedVisited) !== -1
-          ) {
+          var normalizedVisited = normalizeCountryNameScratch(visitedCountriesFromFile[vi]);
+          if (manualCountryMatches(normalizedVisited, normalizedCountryName, aliases)) {
             visitedManually = true;
             break;
           }
@@ -1173,25 +1261,34 @@
         listEl.innerHTML = visitedCountries.join('<br>');
         vc.style.display = 'flex';
       }
+    }
 
-      var southWest = L.latLng(-56, -180);
-      var northEast = L.latLng(83, 180);
-      scratchMap.fitBounds(L.latLngBounds(southWest, northEast));
+    var SHARED_MAP_OPTIONS = {
+      worldCopyJump: true,
+      maxBounds: L.latLngBounds(L.latLng(-85, -180), L.latLng(85, 180)),
+      maxBoundsViscosity: 0.85,
+      dragging: true,
+      scrollWheelZoom: true,
+      doubleClickZoom: true,
+      touchZoom: true
+    };
+
+    function applyPendingScratchView() {
+      if (!scratchMap || !window.__pendingScratchSync) return;
+      var s = window.__pendingScratchSync;
+      var z = Math.max(scratchMap.getMinZoom(), Math.min(s.zoom, scratchMap.getMaxZoom()));
+      scratchMap.setView(s.center, z, { animate: false });
+      window.__pendingScratchSync = null;
     }
 
     function initScratchMapOnce() {
-      if (scratchContentLoaded) {
-        return Promise.resolve();
-      }
       if (!geoActivitiesScratch || !geoTravelScratch) {
         document.getElementById('scratch-stats').textContent = 'Waiting for activity data…';
         return Promise.resolve();
       }
 
       if (!scratchMap) {
-        scratchMap = L.map('map-scratch', {
-          worldCopyJump: true
-        }).setView([20, 0], 2);
+        scratchMap = L.map('map-scratch', Object.assign({}, SHARED_MAP_OPTIONS)).setView([0, 0], 2);
 
         L.tileLayer(
           'https://stamen-tiles-{s}.a.ssl.fastly.net/toner/{z}/{x}/{y}{r}.png',
@@ -1203,23 +1300,33 @@
             maxZoom: 20
           }
         ).addTo(scratchMap);
+      }
 
-        var sw = L.latLng(-56, -180);
-        var ne = L.latLng(83, 180);
-        scratchMap.setMaxBounds(L.latLngBounds(sw, ne));
+      if (scratchContentLoaded) {
+        applyPendingScratchView();
+        return Promise.resolve();
       }
 
       document.getElementById('scratch-stats').textContent = 'Loading countries…';
 
-      return fetchCountriesGeoJsonForScratch()
-        .then(function (countries) {
+      return Promise.all([
+        fetchCountriesGeoJsonForScratch(),
+        loadCountriesVisitedScratch(),
+        fetchManualCountriesJson()
+      ])
+        .then(function (results) {
+          var countries = results[0];
+          var csvLines = results[1];
+          var jsonCountries = results[2];
           if (!countries || !countries.features || !countries.features.length) {
             throw new Error('No country boundaries loaded');
           }
-          return loadCountriesVisitedScratch().then(function (visitedList) {
-            buildScratchCountryLayers(countries, visitedList);
-            scratchContentLoaded = true;
-          });
+          var mergedManual = mergeVisitedCountryLists(csvLines, jsonCountries);
+          buildScratchCountryLayers(countries, mergedManual);
+          scratchContentLoaded = true;
+        })
+        .then(function () {
+          applyPendingScratchView();
         })
         .catch(function (err) {
           console.error(err);
@@ -1229,11 +1336,22 @@
     }
 
     function setScratchView(showScratch) {
+      if (showScratch) {
+        window.__pendingScratchSync = {
+          center: map.getCenter().wrap(),
+          zoom: map.getZoom()
+        };
+      } else if (scratchMap) {
+        var z = Math.max(map.getMinZoom(), Math.min(scratchMap.getZoom(), map.getMaxZoom()));
+        map.setView(scratchMap.getCenter().wrap(), z, { animate: false });
+      }
+
       document.getElementById('map-dashboard').hidden = showScratch;
       document.getElementById('map-scratch').hidden = !showScratch;
       document.getElementById('dashboard-legend').hidden = showScratch;
       document.getElementById('controls-dashboard').hidden = showScratch;
       document.getElementById('controls-scratch').hidden = !showScratch;
+
       if (showScratch) {
         initScratchMapOnce().then(function () {
           if (scratchMap) scratchMap.invalidateSize();
@@ -1244,15 +1362,10 @@
       }
     }
 
-    const africaBounds = [[-35.0, -20.0], [38.0, 52.0]];
-    const map = L.map('map-dashboard', {
-      maxBounds: africaBounds,
-      maxBoundsViscosity: 1.0,
-      dragging: true,
-      scrollWheelZoom: true,
-      doubleClickZoom: true,
-      touchZoom: true
-    }).setView([6.0, 25.0], 4);
+    const map = L.map('map-dashboard', Object.assign({}, SHARED_MAP_OPTIONS)).setView(
+      [6.0, 25.0],
+      4
+    );
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
@@ -1260,7 +1373,28 @@
     }).addTo(map);
 
     const layerGroup = L.layerGroup().addTo(map);
-    const photoMarkersLayer = L.layerGroup().addTo(map);
+    const photoMarkersLayer = L.markerClusterGroup({
+      showCoverageOnHover: false,
+      maxClusterRadius: 78,
+      spiderfyOnMaxZoom: true,
+      disableClusteringAtZoom: 15,
+      spiderfyDistanceMultiplier: 1.4,
+      iconCreateFunction: function (cluster) {
+        var count = cluster.getChildCount();
+        var sizeCls =
+          count < 10 ? 'photo-cluster--small' : count < 100 ? 'photo-cluster--medium' : 'photo-cluster--large';
+        return L.divIcon({
+          html:
+            '<div class="photo-cluster ' +
+            sizeCls +
+            '"><span class="photo-cluster-count">' +
+            count +
+            '</span></div>',
+          className: 'photo-marker-cluster-wrapper',
+          iconSize: L.point(48, 48)
+        });
+      }
+    }).addTo(map);
     let features = [];
     let photoPinsVisible = true;
 
@@ -1272,9 +1406,9 @@
     })();
 
     function mergePhotoIntoBounds(bounds) {
-      photoMarkersLayer.eachLayer(function (layer) {
-        if (layer.getLatLng) bounds.extend(layer.getLatLng());
-      });
+      if (photoMarkersLayer.getLayers().length === 0) return;
+      var pb = photoMarkersLayer.getBounds();
+      if (pb && pb.isValid()) bounds.extend(pb);
     }
 
     function drawPhotoPins(locations) {
