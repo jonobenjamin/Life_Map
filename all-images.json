@@ -66,8 +66,8 @@
   },
   "drone-portfolio": {
     "title": "Drone portfolio (Okavango)",
-    "lat": -19.5,
-    "lng": 23,
+    "lat": ,
+    "lng": ,
     "images": [
       "https://storage.googleapis.com/jono-photo-portfolio/drone-portfolio/ER9A4919.jpg",
       "https://storage.googleapis.com/jono-photo-portfolio/drone-portfolio/img4.jpg",
@@ -113,8 +113,8 @@
   },
   "problem-elephant": {
     "title": "Problem elephant",
-    "lat": -19.55,
-    "lng": 22.92,
+    "lat": -18.762988,
+    "lng": 22.673633,
     "images": [
       "https://storage.googleapis.com/jono-photo-portfolio/problem-elephant/ER9A5998.jpg",
       "https://storage.googleapis.com/jono-photo-portfolio/problem-elephant/ER9A6003.jpg",
@@ -519,8 +519,8 @@
   },
   "Flight": {
     "title": "Flights",
-    "lat": -19.98,
-    "lng": 23.43,
+    "lat": ,
+    "lng": ,
     "images": [
       "https://storage.googleapis.com/jono-photo-portfolio/Flight/ER9A5756.jpg",
       "https://storage.googleapis.com/jono-photo-portfolio/Flight/ER9A5759.jpg",
