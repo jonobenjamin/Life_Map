@@ -66,8 +66,8 @@
   },
   "drone-portfolio": {
     "title": "Drone portfolio (Okavango)",
-    "lat": ,
-    "lng": ,
+    "lat": 0,
+    "lng": 0,
     "images": [
       "https://storage.googleapis.com/jono-photo-portfolio/drone-portfolio/ER9A4919.jpg",
       "https://storage.googleapis.com/jono-photo-portfolio/drone-portfolio/img4.jpg",
@@ -519,8 +519,8 @@
   },
   "Flight": {
     "title": "Flights",
-    "lat": ,
-    "lng": ,
+    "lat": 0,
+    "lng": 0,
     "images": [
       "https://storage.googleapis.com/jono-photo-portfolio/Flight/ER9A5756.jpg",
       "https://storage.googleapis.com/jono-photo-portfolio/Flight/ER9A5759.jpg",
